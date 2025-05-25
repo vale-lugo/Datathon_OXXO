@@ -16,9 +16,9 @@ Oxxo is one of the most popular convenience stores in Mexico, they've recently f
 - ✅ Use of GradientBoostingRegressor model with r-squared = .83
 - ✅ Used external data-sets for schools, 911 reports, population-density and close-competition
 
-## Demo 
+## Pitch
 
-
+https://www.canva.com/design/DAGod445BGw/CcPfUIOo3OAvBohTHOIRzw/edit?utm_content=DAGod445BGw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
 
 ## Installation
 
