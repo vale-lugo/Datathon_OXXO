@@ -22,6 +22,12 @@ Link to our GitHub repo: https://github.com/JocelynVelarde/deep-gpt-wrapper
 
 https://www.canva.com/design/DAGod445BGw/CcPfUIOo3OAvBohTHOIRzw/edit?utm_content=DAGod445BGw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
 
+## External Databases Used
+911 Reports: https://mide.monterrey.gob.mx/catalogue/uuid/33c3a891-a72d-46c1-af5e-f957e069a585
+Schools: https://mide.monterrey.gob.mx/catalogue/uuid/bd4a29cf-3c17-4080-80a6-95cbec757b8a
+Location of Oxxo competitors: https://www.inegi.org.mx/app/mapa/denue/default.aspx
+Population density per municipality, based on the surface area and population of both: https://es.wikipedia.org/wiki/Anexo:Municipios_de_Nuevo_Le%C3%B3n
+
 ## Installation
 
 To install all of the dependencies, you'll need to first make a virtual environment like so :
@@ -39,7 +45,6 @@ pip install -r requirements.txt
 ```
 
 Also, please note that this is a project built on top of Streamlit, and so you'll need a `.streamlit` folder with a `secrets.toml` file with all of your streamlit api keys.
-
 
 ## Contributors
 
