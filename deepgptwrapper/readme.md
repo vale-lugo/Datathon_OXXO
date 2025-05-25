@@ -4,6 +4,8 @@
 ## We built a cool ML tool
 Oxxo is one of the most popular convenience stores in Mexico, they've recently faced a problem to determine weather a location (lat, lon) will be a successful location for their store. Our goal is to develop a predictive model that can assess this issue by receiving the latitude and longitude as input
 
+Link to our GitHub repo: https://github.com/JocelynVelarde/deep-gpt-wrapper 
+
 ## How does it work?
 
 ![WhatsApp Image 2025-05-25 at 11 22 53](https://github.com/user-attachments/assets/7713a6bd-4814-430a-aa78-5e916080b4b3)
