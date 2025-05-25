@@ -1,0 +1,139 @@
+---
+title: "Depuración de datos"
+author: "Roberto Camacho"
+date: "2025-05-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(stringr) 
+library(readxl)
+library(ggplot2) 
+library(assertthat)
+library(lubridate)
+library(stringdist)
+library(knitr)
+library(visdat)
+library(mice)
+library(tidygeocoder)
+library(readr)
+```
+
+```{r}
+datos_oxxo_test <- read.csv("C:/Users/Rober/Downloads/ventas_test_final.csv")
+```
+
+#filtrar arriba de 210,000
+
+```{r}
+filtrar_bajas_ventas <- function(df) {
+  df_filtrado <- df %>%
+    filter(VENTA_TOTAL >= 210000)
+  return(df_filtrado)
+}
+```
+
+```{r}
+datos_oxxo <- filtrar_bajas_ventas(datos_oxxo)
+```
+
+#2023
+
+```{r}
+datos_oxxo_2023 <- datos_oxxo %>%
+  filter(AÑO == 2023)
+```
+
+```{r}
+datos_oxxo_2023_distinc <- datos_oxxo_2023 %>%
+  distinct(TIENDA_ID)
+```
+
+
+#Definir exito
+
+```{r}
+df_final <- datos_oxxo_2023 %>%
+  group_by(TIENDA_ID) %>%
+  mutate(supera_7veces = ifelse(sum(SUPERA_META, na.rm = TRUE) >= 7, 1, 0)) %>%
+  slice(1) %>%  # Conserva la primera fila (todas son iguales por tienda)
+  ungroup()
+```
+
+#2024
+
+```{r}
+datos_oxxo_2024 <- datos_oxxo %>%
+  filter(AÑO == 2024)
+```
+
+```{r}
+datos_oxxo_2023_distinc <- datos_oxxo_2023 %>%
+  distinct(TIENDA_ID)
+```
+
+#Definir exito
+
+```{r}
+df_final_2024 <- datos_oxxo_2024 %>%
+  group_by(TIENDA_ID) %>%
+  mutate(supera_7veces = ifelse(sum(SUPERA_META, na.rm = TRUE) >= 7, 1, 0)) %>%
+  slice(1) %>%  # Conserva la primera fila (todas son iguales por tienda)
+  ungroup()
+```
+
+#deseleccionar las variables
+
+```{r}
+df_final <- df_final %>%
+  select(-MES_ID,-VENTA_TOTAL, -SUPERA_META, -MES)
+
+df_final_2024 <- df_final_2024 %>%
+  select(-MES_ID,-VENTA_TOTAL, -SUPERA_META, -MES)
+```
+
+```{r}
+datos_oxxo_tienda <- rbind(df_final, df_final_2024)
+```
+
+#Agregar variable de plaza
+
+```{r}
+writexl::write_xlsx(datos_oxxo_tienda, "C:/Users/Rober/Downloads/datos_oxxo_tienda.xlsx")
+```
+
+
+```{r}
+datos_bajos <- datos_oxxo %>%
+  filter(VENTA_TOTAL < 100000)
+
+datos_prueba_2023 <- datos_oxxo %>%
+  filter(VENTA_TOTAL > 100000) %>%
+  group_by(ENTORNO_DES,TIENDA_ID) %>%
+  summarize(promedio_venta = mean(VENTA_TOTAL))
+
+datos_altos_prom <- datos_prueba_2023 %>%
+  group_by(ENTORNO_DES) %>%
+  summarize(promedio_venta = mean(promedio_venta))
+
+```
+
+```{r}
+datos_prueba_2023 <- datos_oxxo %>%
+  filter(VENTA_TOTAL > 100000)
+
+datos_altos_prom <- datos_prueba_2023 %>%
+  group_by(ENTORNO_DES) %>%
+  summarize(promedio_venta = mean(VENTA_TOTAL))
+```
+
+```{r}
+promedio_entorno_des <- datos_prueba_2023 %>%
+  filter(promedio_venta < 100000)
+```
+

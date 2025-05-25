@@ -1,0 +1,740 @@
+---
+title: "Reto Oxxo"
+author: "Roberto Camacho"
+date: "2025-05-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, include=FALSE}
+library(dplyr)
+library(stringr) 
+library(readxl)
+library(ggplot2) 
+library(assertthat)
+library(lubridate)
+library(stringdist)
+library(knitr)
+library(visdat)
+library(mice)
+library(tidygeocoder)
+library(readr)
+library(geosphere)
+```
+
+```{r}
+data_Oxxo <- read.csv("C:/Users/Rober/Downloads/DF_Oxxo.csv")
+```
+
+
+Delimitar los estados que estamos utilizando dentro de nuevo león y Tamaulipas
+
+
+```{r}
+tiendas <- data_Oxxo %>%
+  mutate(estado = case_when(
+    LATITUD_NUM >= 22.1 & LATITUD_NUM <= 27.7 & LONGITUD_NUM >= -99.5 & LONGITUD_NUM <= -97.1 ~ "Tamaulipas",
+    LATITUD_NUM >= 23.2 & LATITUD_NUM <= 27.6 & LONGITUD_NUM >= -101.5 & LONGITUD_NUM <= -98.2 ~ "Nuevo León",
+    TRUE ~ "Otro"
+  ))
+
+otros_registros <- tiendas %>%
+  filter(estado == "Otro")
+
+otros_registros <- otros_registros
+
+#writexl::write_xlsx(otros_registros, "C:/Users/Rober/Downloads/latitud_fuera.xlsx")
+
+
+resumen <- tiendas %>%
+  count(estado, name = "n_tiendas")
+
+resumen <- resumen %>%
+  mutate(
+    total = sum(n_tiendas),
+    porcentaje = round((n_tiendas / total) * 100, 2)
+  )
+
+print(resumen)
+```
+
+Cargamos datos del inegi del reporte Denue de Nuevo León
+
+```{r}
+denue <- read.csv("C:/Users/Rober/Downloads/denue_inegi_19_NL.csv", fileEncoding = "latin1")
+```
+
+Convertimos la variable tipoCenCom a factor para ver sus niveles y poder analizarla
+
+```{r}
+plazas <- denue %>%
+  mutate(tipoCenCom = as.factor(tipoCenCom))
+
+levels(plazas$tipoCenCom)
+```
+Dejamos solo las cordenadas que son unicas
+
+```{r}
+plazas_unique <- plazas %>%
+  distinct(latitud, longitud, .keep_all = TRUE)
+```
+
+Dejamos solo las columnas de latitud, longitud y tipo de cenCom
+
+```{r}
+plazas_unique <- plazas_unique %>%
+  select(tipoCenCom,latitud,longitud)
+```
+
+```{r}
+writexl::write_xlsx(plazas_unique, "C:/Users/Rober/Downloads/plazas.xlsx")
+```
+
+Cargamos datos del inegi del reporte Denue de Tamaulipas
+
+```{r}
+denue_tam <- read.csv("C:/Users/Rober/Downloads/denue_inegi_28_Ta.csv", fileEncoding = "latin1")
+```
+
+convertimos el tipoCencom a factor
+
+```{r}
+plazas_tam <- denue_tam %>%
+  mutate(tipoCenCom = as.factor(tipoCenCom))
+```
+
+Dejamos solo las cordenadas que son unicas
+
+```{r}
+plazas_unique_tam <- plazas_tam %>%
+  distinct(latitud, longitud, .keep_all = TRUE)
+```
+
+Usamos un semi join para solo tener info de los estados de los que tenemos tiendas oxxo
+
+```{r}
+mun <- read_excel("C:/Users/Rober/Downloads/mun_tam_reto.xlsx")
+
+mun <- mun %>%
+  mutate(municipio = Municipio)
+
+Tam_plazas_unique_municipio_select <- plazas_unique_tam %>%
+  semi_join(mun, by = "municipio")
+```
+
+Dejamos solo las variables improtantes
+
+```{r}
+Tam_plazas_unique_municipio_select <- Tam_plazas_unique_municipio_select %>%
+  select(tipoCenCom,latitud,longitud)
+```
+
+Juntamos las columnas para poder ver si hay una plaza cerca de los oxxos y comparar a futuro si influye en el exito
+
+```{r}
+plazas_tam_nl <- rbind(plazas_unique, Tam_plazas_unique_municipio_select)
+```
+
+```{r}
+#writexl::write_xlsx(plazas_tam_nl, "C:/Users/Rober/Downloads/plazas_tam_nl.xlsx")
+```
+
+
+## Segunda variable
+
+De al variable actividades dejamos las categorías que tienen relación con 
+
+```{r}
+actividades <- c(
+  "Comercio al por menor de artículos desechables",
+  "Comercio al por menor de bebidas no alcohólicas y hielo",
+  "Comercio al por menor de cerveza",
+  "Comercio al por menor de cigarros, puros y tabaco",
+  "Comercio al por menor de leche, otros productos lácteos y embutidos",
+  "Comercio al por menor de otros alimentos",
+  "Comercio al por menor de otros artículos de uso personal",
+  "Comercio al por menor de paletas de hielo y helados",
+  "Comercio al por menor de pañales desechables",
+  "Comercio al por menor de vinos y licores",
+  "Comercio al por menor en tiendas de abarrotes, ultramarinos y misceláneas"
+)
+
+# Crear el data frame con encabezado "nombre_act"
+df_actividades <- data.frame(nombre_act = actividades, stringsAsFactors = FALSE)
+
+# Ver el resultado
+print(df_actividades)
+```
+
+Limpiamos la variable nombre act para evitar errore
+
+```{r}
+comp_dir <- denue %>%
+  mutate(nombre_act = trimws(nombre_act))
+
+comp_dir <- comp_dir %>%
+  semi_join(df_actividades, by = "nombre_act")
+
+```
+
+```{r}
+Comp_direct <- comp_dir
+```
+
+Elegimos las variables importantes para identificar si el exito de las tiendas oxxo pdorian tener relación en cuanto al éxito
+
+```{r}
+Comp_direct <- Comp_direct %>%
+  select(latitud,longitud, nombre_act)
+```
+
+```{r}
+Comp_direct <- Comp_direct %>%
+  mutate(comp_directo = nombre_act)
+```
+
+```{r}
+Comp_direct <- Comp_direct %>%
+  select(-nombre_act)
+```
+
+```{r}
+Comp_direct <- Comp_direct %>%
+  mutate(comp_directo = "comp_directo")
+```
+
+```{r}
+Comp_direct <- Comp_direct %>%
+  distinct(latitud, longitud, .keep_all = TRUE)
+```
+
+Realizamos el mismo procedimiento para los datos de tamaulipas
+
+```{r}
+Comp_direct_tam <- denue_tam %>%
+  semi_join(df_actividades, by = "nombre_act")
+```
+
+```{r}
+Comp_direct_tam <- Comp_direct_tam %>%
+  semi_join(mun, by = "municipio")
+```
+
+```{r}
+Comp_direct_tam <- Comp_direct_tam %>%
+  select(latitud,longitud, nombre_act)
+```
+
+```{r}
+Comp_direct_tam <- Comp_direct_tam %>%
+  mutate(comp_directo = nombre_act)
+```
+
+```{r}
+Comp_direct_tam <- Comp_direct_tam %>%
+  select(-nombre_act)
+```
+
+```{r}
+Comp_direct_tam <- Comp_direct_tam %>%
+  mutate(comp_directo = "comp_directo")
+```
+
+```{r}
+Comp_direct_tam <- Comp_direct_tam %>%
+  distinct(latitud, longitud, .keep_all = TRUE)
+```
+
+```{r}
+Comp_direct_nl_tam <- rbind(Comp_direct, Comp_direct_tam)
+```
+
+```{r}
+writexl::write_xlsx(Comp_direct_nl_tam, "C:/Users/Rober/Downloads/Comp_direct_nl_tam.xlsx")
+```
+
+```{r}
+datos_oxxo_update <- read.csv("C:/Users/Rober/Downloads/data_final.csv")
+```
+
+renombramos variables para poder inputar el número o la precensia de establecimeinto en base a un rango de metros con las latitudes de las bases de datos y corremos una prueba de correlación con el parámetro éxito
+
+```{r}
+
+
+datos_oxxo_tienda <- datos_oxxo_update %>%
+  rename(
+    latitud = LATITUD_NUM,
+    longitud = LONGITUD_NUM
+  )
+
+```
+
+```{r}
+Oxo_test <- datos_oxxo_update
+
+Oxo_test <- Oxo_test %>%
+  rename(
+    latitud = LATITUD_NUM,
+    longitud = LONGITUD_NUM
+  )
+```
+
+Realiamos pruebas con diferentes umbrales de metros como distancia de los establecimientos competidores a las tiendas oxxo
+
+```{r}
+distance_threshold_m <- 600
+Oxo_test$num_competidores_cercanos <- 0
+Oxo_test$min_dist_competencia_m <- NA
+
+for (i in 1:nrow(Oxo_test)) {
+  store_lat <- Oxo_test$latitud[i]
+  store_lon <- Oxo_test$longitud[i]
+
+  distances <- distHaversine(
+    p1 = c(store_lon, store_lat),
+    p2 = as.matrix(Comp_direct_nl_tam[, c("longitud", "latitud")])
+  )
+
+  Oxo_test$min_dist_competencia_m[i] <- min(distances)
+
+  # Count the number of competitors within the threshold
+  Oxo_test$num_competidores_cercanos[i] <- sum(distances <= distance_threshold_m)
+}
+```
+
+Filtramos por año 2024
+
+```{r}
+df_comp_nu_2024 <- Oxo_test %>%
+  filter(AÑO ==2024)
+```
+
+Filtramos los datos que son menores o iguales a la mitad de la meta más baja (420000)
+
+```{r}
+filtrar_bajas_ventas <- function(df) {
+  df_filtrado <- df %>%
+    filter(VENTA_TOTAL >= 210000)
+  return(df_filtrado)
+}
+```
+
+```{r}
+comparacion_comp_meta_nu <- filtrar_bajas_ventas(df_comp_nu_2024)
+```
+
+Agrupamos las tiendas por ID y sumamos los meses que alcanzaron la meta para poder medir si cumple con el éxito de la empresa el cual es tener 7 meses superando la meta
+
+```{r}
+df_prueba12_2024 <- comparacion_comp_meta_nu %>%
+  group_by(TIENDA_ID) %>%
+  mutate(supera_7veces = ifelse(sum(SUPERA_META, na.rm = TRUE) >= 7, 1, 0)) %>%
+  slice(1) %>%  # Conserva la primera fila (todas son iguales por tienda)
+  ungroup()
+```
+
+hacemos un análsiis de correlación entre las variables para ver valdria la pena incluirlo al modelo
+
+```{r}
+correlacion_prueba12 <- cor(df_prueba12_2024$supera_7veces, df_prueba12_2024$num_competidores_cercanos, use = "complete.obs", method = "pearson")
+print(correlacion_prueba12)
+```
+
+# Ahora hacemos 2023 
+
+```{r}
+df_comp_nu_2023 <- Oxo_test %>%
+  filter(AÑO ==2023)
+```
+
+```{r}
+comparacion_comp_meta_nu_2023 <- filtrar_bajas_ventas(df_comp_nu_2023)
+```
+
+```{r}
+df_prueba12_2023 <- comparacion_comp_meta_nu_2023 %>%
+  group_by(TIENDA_ID) %>%
+  mutate(supera_7veces = ifelse(sum(SUPERA_META, na.rm = TRUE) >= 7, 1, 0)) %>%
+  slice(1) %>%  # Conserva la primera fila (todas son iguales por tienda)
+  ungroup()
+```
+
+unimos ambos años en un mismo df
+
+```{r}
+datos_oxxo_tienda <- rbind(df_prueba12_2024, df_prueba12_2023)
+```
+
+#deseleccionar las variables
+
+```{r}
+df_final_bueno <- datos_oxxo_tienda %>%
+  select(-MES_ID,-VENTA_TOTAL, -SUPERA_META, -MES) %>%
+  rename (SUPERA_META_VENTAS = supera_7veces, MTS2VENTAS_NUM)
+  
+```
+
+#rellenamos los cero con la reocmendación del Socio Formador (promedio)
+
+```{r}
+df_final_bueno <- df_final_bueno %>%
+  mutate(
+    MTS2VENTAS_NUM = ifelse(MTS2VENTAS_NUM == 0, 109.71, MTS2VENTAS_NUM),
+    PUERTASREFRIG_NUM = ifelse(PUERTASREFRIG_NUM == 0, 11.93, PUERTASREFRIG_NUM)
+  )
+```
+
+
+```{r}
+#writexl::write_xlsx(df_final_bueno, "C:/Users/Rober/Downloads/df_final_bueno.xlsx")
+```
+
+Cargamos los datos de test que nos dio el socio formado
+
+```{r}
+datos_oxxo_test <- read.csv("C:/Users/Rober/Downloads/ventas_test_final.csv")
+```
+
+```{r}
+datos_oxxo_test <- datos_oxxo_test %>%
+  rename(
+    latitud = LATITUD_NUM,
+    longitud = LONGITUD_NUM
+  )
+```
+
+```{r}
+distance_threshold_m <- 600
+datos_oxxo_test$num_competidores_cercanos <- 0
+datos_oxxo_test$min_dist_competencia_m <- NA
+
+for (i in 1:nrow(datos_oxxo_test)) {
+  store_lat <- datos_oxxo_test$latitud[i]
+  store_lon <- datos_oxxo_test$longitud[i]
+
+  distances <- distHaversine(
+    p1 = c(store_lon, store_lat),
+    p2 = as.matrix(Comp_direct_nl_tam[, c("longitud", "latitud")])
+  )
+
+  datos_oxxo_test$min_dist_competencia_m[i] <- min(distances)
+
+  # Count the number of competitors within the threshold
+  datos_oxxo_test$num_competidores_cercanos[i] <- sum(distances <= distance_threshold_m)
+}
+```
+
+Filtramos por año 2024
+
+```{r}
+df_comp_nu_2024_test <- datos_oxxo_test %>%
+  filter(AÑO ==2024)
+```
+
+Filtramos los datos que son menores o iguales a la mitad de la meta más baja (420000)
+
+```{r}
+filtrar_bajas_ventas <- function(df) {
+  df_filtrado <- df %>%
+    filter(VENTA_TOTAL >= 210000)
+  return(df_filtrado)
+}
+```
+
+```{r}
+comparacion_comp_meta_nu <- filtrar_bajas_ventas(df_comp_nu_2024_test)
+```
+
+Agrupamos las tiendas por ID y sumamos los meses que alcanzaron la meta para poder medir si cumple con el éxito de la empresa el cual es tener 7 meses superando la meta
+
+```{r}
+df_prueba12_2024_test <- comparacion_comp_meta_nu %>%
+  group_by(TIENDA_ID) %>%
+  mutate(supera_7veces = ifelse(sum(SUPERA_META, na.rm = TRUE) >= 7, 1, 0)) %>%
+  slice(1) %>%  # Conserva la primera fila (todas son iguales por tienda)
+  ungroup()
+```
+
+#Ahora limpiamos las de 2023
+
+# Ahora hacemos 2023 
+
+```{r}
+df_prueba12_2023_test <- datos_oxxo_test %>%
+  filter(AÑO ==2023)
+```
+
+```{r}
+comparacion_comp_meta_nu_2023_test <- filtrar_bajas_ventas(df_prueba12_2023_test)
+```
+
+```{r}
+df_prueba12_2023_test <- comparacion_comp_meta_nu_2023_test %>%
+  group_by(TIENDA_ID) %>%
+  mutate(supera_7veces = ifelse(sum(SUPERA_META, na.rm = TRUE) >= 7, 1, 0)) %>%
+  slice(1) %>%  # Conserva la primera fila (todas son iguales por tienda)
+  ungroup()
+```
+
+unimos ambos años en un mismo df
+
+```{r}
+datos_oxxo_test_final <- rbind(df_prueba12_2024_test, df_prueba12_2023_test)
+```
+
+#deseleccionar las variables
+
+```{r}
+datos_oxxo_test_final_bueno <- datos_oxxo_test_final %>%
+  select(-MES_ID,-VENTA_TOTAL, -SUPERA_META) %>%
+  rename (SUPERA_META_VENTAS = supera_7veces)
+  
+```
+
+#rellenamos los cero con la reocmendación del Socio Formador (promedio)
+
+```{r}
+datos_oxxo_test_final_bueno <- datos_oxxo_test_final_bueno %>%
+  mutate(
+    MTS2VENTAS_NUM = ifelse(MTS2VENTAS_NUM == 0, 109.71, MTS2VENTAS_NUM),
+    PUERTASREFRIG_NUM = ifelse(PUERTASREFRIG_NUM == 0, 11.93, PUERTASREFRIG_NUM)
+  )
+
+datos_oxxo_test_final_bueno <- datos_oxxo_test_final %>%
+  select(-min_dist_competencia_m)
+```
+
+```{r}
+#writexl::write_xlsx(datos_oxxo_test_final_bueno, "C:/Users/Rober/Downloads/df_test_reto.xlsx")
+```
+
+
+#Pruebas con variables binarias
+
+```{r}
+distance_threshold_m <- 100
+
+Oxo_test$cerca_competencia <- 0
+Oxo_test$min_dist_competencia_m <- NA
+
+for (i in 1:nrow(Oxo_test)) {
+  store_lat <- Oxo_test$latitud[i]
+  store_lon <- Oxo_test$longitud[i]
+
+distances <- distHaversine(
+    p1 = c(store_lon, store_lat),
+    p2 = as.matrix(Comp_direct_nl_tam[, c("longitud", "latitud")])
+  )
+
+Oxo_test$min_dist_competencia_m[i] <- min(distances)
+
+if (any(distances <= distance_threshold_m)) {
+    Oxo_test$cerca_competencia[i] <- 1
+  }
+}
+
+```
+# Prueba de correlación con variable de competidores
+
+```{r}
+df_comp_2024 <- Oxo_test %>%
+  filter(AÑO ==2024)
+```
+
+```{r}
+filtrar_bajas_ventas <- function(df) {
+  df_filtrado <- df %>%
+    filter(VENTA_TOTAL >= 210000)
+  return(df_filtrado)
+}
+```
+
+```{r}
+comparacion_comp_meta <- filtrar_bajas_ventas(df_comp_2024)
+```
+
+```{r}
+df_prueba4_2024 <- comparacion_comp_meta %>%
+  group_by(TIENDA_ID) %>%
+  mutate(supera_7veces = ifelse(sum(SUPERA_META, na.rm = TRUE) >= 7, 1, 0)) %>%
+  slice(1) %>%  # Conserva la primera fila (todas son iguales por tienda)
+  ungroup()
+```
+
+
+```{r}
+correlacion_prueba4 <- cor(df_prueba4_2024$supera_7veces, df_prueba4_2024$cerca_competencia, use = "complete.obs", method = "pearson")
+print(correlacion_prueba4)
+```
+
+
+```{r}
+# --- 2. Define the distance threshold ---
+distance_threshold_m <- 000
+
+# --- 3. Initialize the new columns in datos_oxxo_tienda ---
+datos_oxxo_tienda$cerca_plaza <- 0
+datos_oxxo_tienda$min_dist_plaza <- NA
+
+# --- 4. Loop through each Oxxo store and calculate proximity and min distance ---
+# Using the chunking approach if datos_oxxo_tienda is very large
+# (as discussed in the previous response, the direct vectorized distm is better if memory allows)
+
+# If datos_oxxo_tienda has 26,000+ rows, consider using the chunking approach
+# from the previous explanation to avoid memory issues for the full distance matrix.
+# For this corrected snippet, I'm sticking to the loop structure you provided
+# to directly address the errors you encountered.
+
+for (i in 1:nrow(datos_oxxo_tienda)) {
+  store_lat <- datos_oxxo_tienda$latitud[i]
+  store_lon <- datos_oxxo_tienda$longitud[i]
+
+  # Calculate distances from the current Oxxo store to all plazas
+  distances <- distHaversine(
+    p1 = c(store_lon, store_lat), # p1 expects (longitude, latitude)
+    p2 = as.matrix(plazas_tam_nl[, c("longitud", "latitud")]) # p2 expects (longitude, latitude)
+  )
+
+  # Store the minimum distance to any plaza
+  datos_oxxo_tienda$min_dist_plaza[i] <- min(distances)
+
+  # Check if any plaza is within the threshold (0 or 1)
+  # CORRECTED: Use datos_oxxo_tienda$cerca_plaza[i] instead of Oxo_test$cerca_plaza[i]
+  if (any(distances <= distance_threshold_m)) {
+    datos_oxxo_tienda$cerca_plaza[i] <- 1
+  }
+}
+```
+
+
+```{r}
+writexl::write_xlsx(datos_oxxo_tienda, "C:/Users/Rober/Downloads/datos_oxxo_tienda.xlsx")
+```
+
+#Segundo Intento de variable plaza
+
+```{r}
+# --- 2. Define the distance threshold ---
+distance_threshold_m <- 400
+
+# --- 3. Initialize the new columns in datos_oxxo_tienda ---
+datos_oxxo_tienda$cerca_plaza <- 0
+datos_oxxo_tienda$min_dist_plaza <- NA
+
+# --- 4. Loop through each Oxxo store and calculate proximity and min distance ---
+# Using the chunking approach if datos_oxxo_tienda is very large
+# (as discussed in the previous response, the direct vectorized distm is better if memory allows)
+
+# If datos_oxxo_tienda has 26,000+ rows, consider using the chunking approach
+# from the previous explanation to avoid memory issues for the full distance matrix.
+# For this corrected snippet, I'm sticking to the loop structure you provided
+# to directly address the errors you encountered.
+
+for (i in 1:nrow(datos_oxxo_tienda)) {
+  store_lat <- datos_oxxo_tienda$latitud[i]
+  store_lon <- datos_oxxo_tienda$longitud[i]
+
+  # Calculate distances from the current Oxxo store to all plazas
+  distances <- distHaversine(
+    p1 = c(store_lon, store_lat), # p1 expects (longitude, latitude)
+    p2 = as.matrix(plazas_tam_nl[, c("longitud", "latitud")]) # p2 expects (longitude, latitude)
+  )
+
+  # Store the minimum distance to any plaza
+  datos_oxxo_tienda$min_dist_plaza[i] <- min(distances)
+
+  # Check if any plaza is within the threshold (0 or 1)
+  # CORRECTED: Use datos_oxxo_tienda$cerca_plaza[i] instead of Oxo_test$cerca_plaza[i]
+  if (any(distances <= distance_threshold_m)) {
+    datos_oxxo_tienda$cerca_plaza[i] <- 1
+  }
+}
+```
+
+#Tercer Intento de variable plaza
+
+```{r}
+# --- 2. Define the distance threshold ---
+distance_threshold_m <- 1500
+
+# --- 3. Initialize the new columns in datos_oxxo_tienda ---
+datos_oxxo_tienda$cerca_plaza <- 0
+datos_oxxo_tienda$min_dist_plaza <- NA
+
+# --- 4. Loop through each Oxxo store and calculate proximity and min distance ---
+# Using the chunking approach if datos_oxxo_tienda is very large
+# (as discussed in the previous response, the direct vectorized distm is better if memory allows)
+
+# If datos_oxxo_tienda has 26,000+ rows, consider using the chunking approach
+# from the previous explanation to avoid memory issues for the full distance matrix.
+# For this corrected snippet, I'm sticking to the loop structure you provided
+# to directly address the errors you encountered.
+
+for (i in 1:nrow(datos_oxxo_tienda)) {
+  store_lat <- datos_oxxo_tienda$latitud[i]
+  store_lon <- datos_oxxo_tienda$longitud[i]
+
+  # Calculate distances from the current Oxxo store to all plazas
+  distances <- distHaversine(
+    p1 = c(store_lon, store_lat), # p1 expects (longitude, latitude)
+    p2 = as.matrix(plazas_tam_nl[, c("longitud", "latitud")]) # p2 expects (longitude, latitude)
+  )
+
+  # Store the minimum distance to any plaza
+  datos_oxxo_tienda$min_dist_plaza[i] <- min(distances)
+
+  # Check if any plaza is within the threshold (0 or 1)
+  # CORRECTED: Use datos_oxxo_tienda$cerca_plaza[i] instead of Oxo_test$cerca_plaza[i]
+  if (any(distances <= distance_threshold_m)) {
+    datos_oxxo_tienda$cerca_plaza[i] <- 1
+  }
+}
+```
+
+
+```{r}
+df_2024 <- datos_oxxo_tienda %>%
+  filter(AÑO ==2024)
+```
+
+```{r}
+filtrar_bajas_ventas <- function(df) {
+  df_filtrado <- df %>%
+    filter(VENTA_TOTAL >= 210000)
+  return(df_filtrado)
+}
+```
+
+```{r}
+datos_oxxo <- filtrar_bajas_ventas(df_2024)
+```
+
+```{r}
+df_prueba2_2024 <- datos_oxxo %>%
+  group_by(TIENDA_ID) %>%
+  mutate(supera_7veces = ifelse(sum(SUPERA_META, na.rm = TRUE) >= 7, 1, 0)) %>%
+  slice(1) %>%  # Conserva la primera fila (todas son iguales por tienda)
+  ungroup()
+```
+
+```{r}
+df_prueba2_2024 <- df_prueba2_2024 %>%
+  filter(cerca_plaza ==1)
+```
+
+```{r}
+df_prueba2_2024 <- df_prueba2_2024 %>%
+  filter(supera_7veces ==1)
+```
+
+```{r}
+correlacion <- cor(df_prueba2_2024$supera_7veces, df_prueba2_2024$cerca_plaza, use = "complete.obs", method = "pearson")
+print(correlacion)
+```
+
+
+
