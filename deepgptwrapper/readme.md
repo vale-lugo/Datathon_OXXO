@@ -25,20 +25,20 @@ https://www.canva.com/design/DAGod445BGw/CcPfUIOo3OAvBohTHOIRzw/edit?utm_content
 ## Installation
 
 To install all of the dependencies, you'll need to first make a virtual environment like so :
-bash
+```bash
 py -m venv .venv
-
+```
 Next, you'll want to activate the venv like so:
-bash
+```bash
 .venv/Scripts/activate
-
-Now navigate to the backend directory.
+```
+Now navigate to the `backend` directory.
 Then, you'll want to install all backend dependencies:
-bash
+```bash
 pip install -r requirements.txt
+```
 
-
-Also, please note that this is a project built on top of Streamlit, and so you'll need a .streamlit folder with a secrets.toml file with all of your streamlit api keys.
+Also, please note that this is a project built on top of Streamlit, and so you'll need a `.streamlit` folder with a `secrets.toml` file with all of your streamlit api keys.
 
 
 ## Contributors
